@@ -3,7 +3,6 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
-
 class whiskey_web_scraping():
     def scrape_html(self, base_url, page):
         '''
@@ -205,4 +204,118 @@ class whiskey_web_scraping():
 
         return original_df
 
-    
+    def insert_to_df(self, original_df, new_df):
+        '''
+        Insert new data into an existing dataframe.
+        
+        Args:
+            original_df(DataFrame) : DataFrame with data from the first page of a product.
+            new_df(DataFrame) : DataFrame with data from other pages. 
+            
+        Returns:
+            original_df(DataFrame) : DataFrame with data from original_df + new_df.
+        '''
+        
+        self.original_df = original_df
+        self.new_df = new_df
+        
+        # Insert new data into the DataFrame of the first page
+        original_df = original_df.append(new_df,ignore_index=True, verify_integrity = True)
+
+        return original_df
+
+    def get_links(self, url='https://www.thewhiskyexchange.com/'):
+        '''
+        Generate a list of links that showcase whiskey beverages.
+        
+        Args:
+            url(String) - The URL of the main page.
+                Default - https://www.thewhiskyexchange.com/
+        Returns:
+            relevant_links(List) - A list of only the links that showcase a type of whiskey.
+        '''
+
+        self.url = url
+
+        # Generate a BeautifullSoup object called soup
+        url = url
+        r = requests.get(url)
+        soup = BeautifulSoup(r.content, 'lxml')
+
+        # Collect all the html objects of type 'a'
+        a_tags = soup.find_all('a', class_='subnav__link')
+
+        links_list = []
+
+        # Collect all the hyper links of the webpage.
+        for link in a_tags:
+            links_list.append(link.get('href'))
+
+        relevant_links = []
+        
+        # Iterate through the links and filter only the relevant ones that showcase a type of whiskey.
+        for link in links_list:
+            if link is not None and '/c/' in link and 'whisky' in link and '?' not in link:
+                relevant_links.append(link)
+
+        return relevant_links
+
+    def scrape_whisky(self, url='https://www.thewhiskyexchange.com', number_of_pages=5):
+        '''
+        1. Combining all of the methods into a single place. 
+        2. Extracting a default number of pages from every page that showcases a type of whiskey.
+        3. Export each data of each whiskey type to a CSV file. 
+        4. Return a single DataFrame with all of the scraped whiskey data.
+        
+        Args:
+            url(String) - The base url to extract data from.
+                Default - https://www.thewhiskyexchange.com
+                
+						number_of_pages(Int) - The total number of pages to scrape.
+							  Default = 5
+        
+        Returns:
+            df(DataFrame) - The entire data scraped throughout this project in a single DataFrame.
+        '''
+
+        self.url = url
+        self.number_of_pages = number_of_pages
+        df = pd.DataFrame()
+        # Creating a scraper object
+        s = whiskey_web_scraping()
+
+        # Generating the relevant links to scrape data from
+        links = s.get_links()
+        
+        # Iterating throught each link
+        for link in links:
+            
+            try:
+                # For each page in each link, generate a DataFrame of whiskey related data
+                for page in range(0,number_of_pages):
+                    soup = s.scrape_html(base_url = url + link + '?pg=', page = page+1)
+
+                    content_html = s.get_page_content(soup)
+                    price_html = s.get_page_price(soup)
+
+                    names = s.get_product_name(content_html)
+                    alcohol_amount = s.get_product_alcohol_amount(content_html)
+                    alcohol_percent = s.get_product_alcohol_percent(content_html)
+                    price = s.get_product_price(price_html)
+                    
+                    # Create a new DataFrame for the first page of each whiskey type
+                    if page == 0:
+                        data = s.create_df(names,alcohol_amount, alcohol_percent, price)
+                    
+                    # Insert to an existing DataFrame new data.
+                    data = s.insert_to_df(data, s.create_df(names,alcohol_amount, alcohol_percent, price))                  
+            except:
+                print('Error with the link: {}'.format(link))
+            # Export data for each whiskey type to a seperate CSV file
+            finally:
+                start_location = link.rfind('/')+1 
+                end_location = len(link)
+                data.to_csv(link[start_location:end_location] + '.csv')
+                df = df.append(data, ignore_index = True)
+                
+        return df
