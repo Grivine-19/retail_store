@@ -219,8 +219,10 @@ class whiskey_web_scraping():
         self.original_df = original_df
         self.new_df = new_df
         
-        # Insert new data into the DataFrame of the first page
-        original_df = original_df.append(new_df,ignore_index=True, verify_integrity = True)
+        # Insert new data into the DataFrame of the first page using pd.concat
+        original_df = pd.concat([original_df, new_df], ignore_index=True, verify_integrity=True)
+        
+        #original_df = original_df.append(new_df,ignore_index=True, verify_integrity = True) #append is deprecated
 
         return original_df
 

@@ -1,5 +1,6 @@
 #import the whiskey_web_scraping class
 #%%
+#!pip install beautifulsoup4 lxml
 from scrape import whiskey_web_scraping
 
 #create an instance of the whiskey_web_scraping class/scraper object
@@ -26,5 +27,8 @@ print(df.info())'''
 
 # Scrape Data
 data = scraper.scrape_whisky(number_of_pages=5)
+
+#export to csv
+data.to_csv('whisky_data.csv', index=False)
 
 # %%
